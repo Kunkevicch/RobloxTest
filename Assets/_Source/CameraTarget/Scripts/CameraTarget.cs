@@ -9,7 +9,7 @@ public class CameraTarget : MonoBehaviour
     private float _rotationX = 0.0f;
     private float _rotationY = 0.0f;
 
-    private void Update()
+    private void LateUpdate()
     {
         transform.position = _playerTargetFollower.position;
 

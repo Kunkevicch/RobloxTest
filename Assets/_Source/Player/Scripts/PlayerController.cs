@@ -4,90 +4,151 @@ namespace RobloxTest
 {
     public class PlayerController : MonoBehaviour
     {
-        [SerializeField] private float _moveSpeed;
-        [SerializeField] private float _jumpHeight;
-        [SerializeField] private float _jumpSpeed;
-        [SerializeField] private float _fallingSpeed;
-
         [Space(10)]
         [SerializeField] private Transform _cameraTransform;
+        public float MoveSpeed;
+        public float RotationSpeed;
 
-        [SerializeField] private Transform _checkGround;
-        [SerializeField] private LayerMask _groundLayer;
+        [Space(10)]
+        [SerializeField] private float _maxJumpHeight;
+        [SerializeField] private float _maxJumpTime;
+        [SerializeField] private float _gravityGrounded;
 
-        private Rigidbody _rb;
+        private Vector3 _currentVelocity;
+        private Vector3 _appliedVelocity;
+
+        private bool _isJumpPressed;
+
+        [HideInInspector] public float Gravity;
+        [HideInInspector] public float InitialJumpVelocity;
+
+        private CharacterController _characterController;
         private Animator _animator;
-        private FSM _fsm;
-        private bool _isGrounded;
-        private CapsuleCollider _collider;
+        PlayerFSM _fsm;
         private Vector2 _inputDirection;
-
-        private const float CHECK_GROUND_RADIUS = 0.1f;
+        private PlayerInput _input;
 
         private void Awake()
         {
-            _rb = GetComponent<Rigidbody>();
+            _characterController = GetComponent<CharacterController>();
             _animator = GetComponentInChildren<Animator>();
-            InitialzeFSM();
+            _input = new();
+            InitializeJumpVariables();
+            InitializeFSM();
         }
 
-        public Vector3 InputDirection => new Vector3(_inputDirection.x, 0, _inputDirection.y);
-        public float MoveSpeed => _moveSpeed;
-        public float JumpHeight => _jumpHeight;
-        public float JumpSpeed => _jumpSpeed;
-        public float FallingSpeed => _fallingSpeed;
-        public bool IsGrounded => CheckGround();
+        public CharacterController CharacterController => _characterController;
+        public Animator Animator => _animator;
+        public Vector3 CurrentVelocity { get => _currentVelocity; set => _currentVelocity = value; }
+        public Vector3 AppliedVelocity { get => _appliedVelocity; set => _appliedVelocity = value; }
+        public float MaxJumpHeight => _maxJumpHeight;
+        public float MaxJumpTime => _maxJumpTime;
+        public float GravityGrounded => _gravityGrounded;
+        public float CurrentJumpVelocity { get => _currentVelocity.y; set => _currentVelocity.y = value; }
+        public float AppliedJumpVelocity { get => _appliedVelocity.y; set => _appliedVelocity.y = value; }
+        public bool IsJumpPressed => _isJumpPressed;
+
+
+        private void OnEnable()
+        {
+            _input.Enable();
+
+            _input.Player.Move.started += OnMoveInput;
+            _input.Player.Move.performed += OnMoveInput;
+            _input.Player.Move.canceled += OnMoveInput;
+
+            _input.Player.Jump.started += OnJumpInput;
+            _input.Player.Jump.canceled += OnJumpInput;
+        }
+
+        private void OnDisable()
+        {
+            _input.Disable();
+
+            _input.Player.Move.started -= OnMoveInput;
+            _input.Player.Move.performed -= OnMoveInput;
+            _input.Player.Move.canceled -= OnMoveInput;
+
+            _input.Player.Jump.started -= OnJumpInput;
+            _input.Player.Jump.canceled -= OnJumpInput;
+        }
 
         private void Update()
         {
-            _inputDirection = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
-
-            if (Input.GetButtonDown("Jump") && _isGrounded)
-            {
-                _fsm.SetState<StateJump>();
-            }
-
             _fsm.Update();
+            _characterController.Move(_appliedVelocity * Time.deltaTime);
+            //HandleGravity();
         }
 
         private void FixedUpdate()
         {
-            _isGrounded = CheckGround();
             _fsm.FixedUpdate();
         }
 
-        private void InitialzeFSM()
+        private void InitializeJumpVariables()
+        {
+            float timeToApex = MaxJumpTime / 2;
+            Gravity = (-2 * MaxJumpHeight) / Mathf.Pow(timeToApex, 2);
+            InitialJumpVelocity = (2 * MaxJumpHeight) / timeToApex;
+        }
+
+        private void InitializeFSM()
         {
             _fsm = new();
 
-            StateIdle stateIdle = new(_fsm, _animator, this);
-            StateMove stateMove = new(_fsm, _animator, _rb, this);
-            StateJump stateJump = new(_fsm, _animator, _rb, this);
-            StateFall stateFall = new(_fsm, _animator, _rb, this);
+            PlayerStateIdle playerStateIdle = new(_fsm, this);
+            PlayerStateMove playerStateMove = new(_fsm, this);
+            PlayerStateJump playerStateJump = new(_fsm, this);
+            PlayerStateFall playerStateFall = new(_fsm, this);
 
-            _fsm.AddState(stateIdle);
-            _fsm.AddState(stateMove);
-            _fsm.AddState(stateJump);
-            _fsm.AddState(stateFall);
-            _fsm.SetState<StateIdle>();
+            PlayerStateGrounded playerStateGrounded = new(_fsm, this, playerStateIdle, playerStateMove);
+
+            _fsm.AddState(playerStateGrounded);
+            _fsm.AddState(playerStateJump);
+            _fsm.AddState(playerStateFall);
+
+            _fsm.SetState<PlayerStateGrounded>();
         }
 
-        private bool CheckGround() => Physics.CheckSphere(_checkGround.position, CHECK_GROUND_RADIUS, _groundLayer);
+        private void HandleGravity()
+        {
+            bool isFalling = _currentVelocity.y <= 0 || !_isJumpPressed;
+            float fallMultiplier = 2f;
 
-        public Vector3 GetMoveDirection()
+            if (_characterController.isGrounded)
+            {
+                _currentVelocity.y = GravityGrounded;
+                _appliedVelocity.y = GravityGrounded;
+            }
+            else if (isFalling)
+            {
+                float previouslyYVelocity = _currentVelocity.y;
+                _currentVelocity.y = _currentVelocity.y + (Gravity * fallMultiplier * Time.deltaTime);
+                _appliedVelocity.y = (previouslyYVelocity + _currentVelocity.y) * .5f;
+            }
+            else
+            {
+                float previousYVelocity = _currentVelocity.y;
+                _currentVelocity.y = _currentVelocity.y + (Gravity * fallMultiplier * Time.deltaTime);
+                _appliedVelocity.y = (previousYVelocity + _currentVelocity.y) * .5f;
+            }
+        }
+
+        public Vector3 GetMoveInput()
         {
             Vector3 cameraForward = _cameraTransform.forward;
+            Vector3 cameraRight = _cameraTransform.right;
             cameraForward.y = 0;
-            cameraForward.Normalize();
+            cameraRight.y = 0;
 
-            Vector3 moveDirection = cameraForward * InputDirection.z + _cameraTransform.right * InputDirection.x;
-            moveDirection.Normalize();
+            return (cameraForward * _inputDirection.y + cameraRight * _inputDirection.x).normalized;
+        }
 
-            return moveDirection;
-        }
-        private void OnDrawGizmos()
-        {
-            Gizmos.DrawSphere(_checkGround.position, CHECK_GROUND_RADIUS);
-        }
+        private void OnMoveInput(UnityEngine.InputSystem.InputAction.CallbackContext context) =>
+            _inputDirection = context.ReadValue<Vector2>();
+
+
+        private void OnJumpInput(UnityEngine.InputSystem.InputAction.CallbackContext context) =>
+            _isJumpPressed = context.ReadValueAsButton();
     }
 }
