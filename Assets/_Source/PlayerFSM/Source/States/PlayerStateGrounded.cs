@@ -17,6 +17,7 @@ namespace RobloxTest
 
         public override void Enter()
         {
+            _player.IsJumpPressed = false;
             _player.CurrentJumpVelocity = _player.GravityGrounded;
             _player.AppliedJumpVelocity = _player.GravityGrounded;
             if (_player.GetMoveInput() == Vector3.zero)
@@ -25,7 +26,7 @@ namespace RobloxTest
             }
             else
             {
-                SetSubState<PlayerStateIdle>();
+                SetSubState<PlayerStateMove>();
             }
         }
 
@@ -37,12 +38,6 @@ namespace RobloxTest
 
         private void HandleStateSwitch()
         {
-            if (!_player.CharacterController.isGrounded)
-            {
-                SwitchState<PlayerStateFall>();
-                return;
-            }
-
             if (_player.IsJumpPressed == true)
             {
                 SwitchState<PlayerStateJump>();

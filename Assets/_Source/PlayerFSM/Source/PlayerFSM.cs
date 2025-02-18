@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace RobloxTest
 {
     public class PlayerFSM
     {
-        private Dictionary<Type, PlayerStateBase> _states = new();
+        private readonly Dictionary<Type, PlayerStateBase> _states = new();
         private PlayerStateBase _currentState;
 
         public void AddState(PlayerStateBase newState)
@@ -39,6 +40,7 @@ namespace RobloxTest
 
         public void Update()
         {
+            Debug.Log(_currentState.GetType());
             if (_currentState is IUpdateable updateable)
             {
                 updateable.Update();

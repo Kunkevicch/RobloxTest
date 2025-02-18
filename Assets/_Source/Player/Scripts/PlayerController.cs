@@ -19,12 +19,12 @@ namespace RobloxTest
 
         private bool _isJumpPressed;
 
-        [HideInInspector] public float Gravity;
-        [HideInInspector] public float InitialJumpVelocity;
+        private float _gravity;
+        private float _initialJumpVelocity;
 
         private CharacterController _characterController;
         private Animator _animator;
-        PlayerFSM _fsm;
+        private PlayerFSM _fsm;
         private Vector2 _inputDirection;
         private PlayerInput _input;
 
@@ -46,8 +46,9 @@ namespace RobloxTest
         public float GravityGrounded => _gravityGrounded;
         public float CurrentJumpVelocity { get => _currentVelocity.y; set => _currentVelocity.y = value; }
         public float AppliedJumpVelocity { get => _appliedVelocity.y; set => _appliedVelocity.y = value; }
-        public bool IsJumpPressed => _isJumpPressed;
-
+        public bool IsJumpPressed { get => _isJumpPressed; set => _isJumpPressed = value; }
+        public float Gravity => _gravity;
+        public float InitialJumpVelocity => _initialJumpVelocity;
 
         private void OnEnable()
         {
@@ -76,8 +77,8 @@ namespace RobloxTest
         private void Update()
         {
             _fsm.Update();
-            _characterController.Move(_appliedVelocity * Time.deltaTime);
-            //HandleGravity();
+            _characterController.Move(MoveSpeed * Time.deltaTime * _appliedVelocity);
+            HandleGravity();
         }
 
         private void FixedUpdate()
@@ -88,8 +89,8 @@ namespace RobloxTest
         private void InitializeJumpVariables()
         {
             float timeToApex = MaxJumpTime / 2;
-            Gravity = (-2 * MaxJumpHeight) / Mathf.Pow(timeToApex, 2);
-            InitialJumpVelocity = (2 * MaxJumpHeight) / timeToApex;
+            _gravity = (-2 * MaxJumpHeight) / Mathf.Pow(timeToApex, 2);
+            _initialJumpVelocity = (2 * MaxJumpHeight) / timeToApex;
         }
 
         private void InitializeFSM()
@@ -99,13 +100,11 @@ namespace RobloxTest
             PlayerStateIdle playerStateIdle = new(_fsm, this);
             PlayerStateMove playerStateMove = new(_fsm, this);
             PlayerStateJump playerStateJump = new(_fsm, this);
-            PlayerStateFall playerStateFall = new(_fsm, this);
 
             PlayerStateGrounded playerStateGrounded = new(_fsm, this, playerStateIdle, playerStateMove);
 
             _fsm.AddState(playerStateGrounded);
             _fsm.AddState(playerStateJump);
-            _fsm.AddState(playerStateFall);
 
             _fsm.SetState<PlayerStateGrounded>();
         }
@@ -123,13 +122,13 @@ namespace RobloxTest
             else if (isFalling)
             {
                 float previouslyYVelocity = _currentVelocity.y;
-                _currentVelocity.y = _currentVelocity.y + (Gravity * fallMultiplier * Time.deltaTime);
+                _currentVelocity.y += (Gravity * fallMultiplier * Time.deltaTime);
                 _appliedVelocity.y = (previouslyYVelocity + _currentVelocity.y) * .5f;
             }
             else
             {
                 float previousYVelocity = _currentVelocity.y;
-                _currentVelocity.y = _currentVelocity.y + (Gravity * fallMultiplier * Time.deltaTime);
+                _currentVelocity.y += (Gravity * fallMultiplier * Time.deltaTime);
                 _appliedVelocity.y = (previousYVelocity + _currentVelocity.y) * .5f;
             }
         }

@@ -16,7 +16,7 @@ namespace RobloxTest
         public void Update()
         {
             Vector3 moveInput = _player.GetMoveInput();
-            _player.AppliedVelocity = new Vector3(moveInput.x, _player.AppliedVelocity.y, moveInput.z) * _player.MoveSpeed;
+            _player.AppliedVelocity = new Vector3(moveInput.x, _player.AppliedVelocity.y, moveInput.z);
             if (moveInput != Vector3.zero)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(moveInput);
@@ -25,7 +25,6 @@ namespace RobloxTest
                     targetRotation,
                     _player.RotationSpeed * Time.deltaTime);
             }
-
         }
     }
 }

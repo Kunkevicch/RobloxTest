@@ -29,10 +29,6 @@ namespace RobloxTest
             {
                 SwitchState<PlayerStateGrounded>();
             }
-            else
-            {
-                SwitchState<PlayerStateFall>();
-            }
         }
     }
 }

@@ -11,7 +11,7 @@ namespace RobloxTest
         public override void Enter()
         {
             _player.Animator.SetFloat("Velocity", 0);
-            _player.AppliedVelocity = Vector3.zero;
+            _player.AppliedVelocity = new Vector3(0, _player.GravityGrounded, 0);
         }
     }
 }
